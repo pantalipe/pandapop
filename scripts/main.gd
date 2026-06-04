@@ -1,60 +1,63 @@
 extends Node2D
 
-# Main — game loop, obstacle spawning, scrolling ground
+# Main — clicker game controller
 
-const INITIAL_SPEED: float = 300.0
-const MAX_SPEED: float = 700.0
-const SPEED_INCREMENT: float = 15.0  # per second
-
-var scroll_speed: float = INITIAL_SPEED
-var score_timer: float = 0.0
-
-@onready var player = $Player
-@onready var ground = $Ground
-@onready var obstacle_spawner = $ObstacleSpawner
-@onready var coin_spawner = $CoinSpawner
-@onready var hud = $HUD
-@onready var game_over_screen = $GameOverScreen
+@onready var coin_label: Label = $UI/TopBar/CoinLabel
+@onready var cps_label: Label = $UI/TopBar/CpsLabel
+@onready var click_button: Button = $UI/ClickArea/ClickButton
+@onready var upgrade_list: VBoxContainer = $UI/UpgradePanel/ScrollContainer/UpgradeList
 
 func _ready() -> void:
-	GameManager.start_game()
-	GameManager.game_over.connect(_on_game_over)
-	player.died.connect(_on_player_died)
-	game_over_screen.visible = false
+	GameManager.coins_changed.connect(_on_coins_changed)
+	GameManager.cps_changed.connect(_on_cps_changed)
+	click_button.pressed.connect(_on_click)
+	_build_upgrade_list()
+	_on_coins_changed(GameManager.coins)
+	_on_cps_changed(GameManager.coins_per_second)
 
-func _process(delta: float) -> void:
-	if not GameManager.is_playing:
-		return
+func _on_click() -> void:
+	GameManager.click()
 
-	# Increase speed over time
-	scroll_speed = min(scroll_speed + SPEED_INCREMENT * delta, MAX_SPEED)
+func _on_coins_changed(value: float) -> void:
+	coin_label.text = "PP " + _format(value)
+	_refresh_upgrade_buttons()
 
-	# Score every 0.1s
-	score_timer += delta
-	if score_timer >= 0.1:
-		score_timer = 0.0
-		GameManager.add_score(1)
+func _on_cps_changed(value: float) -> void:
+	if value > 0:
+		cps_label.text = _format(value) + " PP/s"
+	else:
+		cps_label.text = ""
 
-	# Scroll ground tiles
-	for tile in ground.get_children():
-		tile.position.x -= scroll_speed * delta
-		if tile.position.x < -tile.get_rect().size.x:
-			tile.position.x += tile.get_rect().size.x * 2
+func _format(value: float) -> String:
+	if value >= 1_000_000:
+		return "%.2f M" % (value / 1_000_000)
+	elif value >= 1_000:
+		return "%.2f K" % (value / 1_000)
+	else:
+		return "%d" % int(value)
 
-func _input(event: InputEvent) -> void:
-	if not GameManager.is_playing:
-		return
-	if event is InputEventScreenTouch and event.pressed:
-		player.try_jump()
-	if event is InputEventKey and event.pressed and event.keycode == KEY_SPACE:
-		player.try_jump()
+func _build_upgrade_list() -> void:
+	for i in range(GameManager.upgrades.size()):
+		var u = GameManager.upgrades[i]
+		var btn = Button.new()
+		btn.name = "Upgrade_" + str(i)
+		btn.custom_minimum_size = Vector2(0, 70)
+		btn.text = _upgrade_text(i)
+		btn.pressed.connect(_on_buy_upgrade.bind(i))
+		upgrade_list.add_child(btn)
 
-func _on_player_died() -> void:
-	GameManager.end_game()
+func _on_buy_upgrade(index: int) -> void:
+	GameManager.buy_upgrade(index)
+	_refresh_upgrade_buttons()
 
-func _on_game_over() -> void:
-	game_over_screen.visible = true
-	game_over_screen.show_score(GameManager.score, GameManager.highscore)
+func _refresh_upgrade_buttons() -> void:
+	for i in range(GameManager.upgrades.size()):
+		var btn = upgrade_list.get_node_or_null("Upgrade_" + str(i))
+		if btn:
+			btn.text = _upgrade_text(i)
+			btn.disabled = GameManager.coins < GameManager.get_upgrade_cost(i)
 
-func restart() -> void:
-	get_tree().reload_current_scene()
+func _upgrade_text(i: int) -> String:
+	var u = GameManager.upgrades[i]
+	var cost = GameManager.get_upgrade_cost(i)
+	return u["name"] + " [" + str(u["count"]) + "]\n" + _format(cost) + " PP — " + u["desc"]
