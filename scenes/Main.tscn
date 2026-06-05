@@ -1,22 +1,29 @@
-[gd_scene load_steps=2 format=3 uid="uid://52neeoxmq7tr"]
+[gd_scene load_steps=3 format=3 uid="uid://52neeoxmq7tr"]
 
 [ext_resource type="Script" uid="uid://b8r82g2fry5xq" path="res://scripts/main.gd" id="1_elqb8"]
+[ext_resource type="Texture2D" uid="uid://b6voqbvw6cg7e" path="res://assets/sprites/background.png" id="2_rvslj"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_elqb8")
 
+[node name="Background" type="Sprite2D" parent="."]
+position = Vector2(240, 427)
+scale = Vector2(0.6, 0.6)
+texture = ExtResource("2_rvslj")
+
 [node name="UI" type="CanvasLayer" parent="."]
 
-[node name="TopBar" type="VBoxContainer" parent="UI"]
-anchors_preset = 10
-anchor_right = 1.0
+[node name="TopBar" type="PanelContainer" parent="UI"]
+offset_right = 1.0
 offset_bottom = 50.0
-grow_horizontal = 2
 
-[node name="CoinLabel" type="Label" parent="UI/TopBar"]
+[node name="VBox" type="VBoxContainer" parent="UI/TopBar"]
 layout_mode = 2
 
-[node name="CpsLabel" type="Label" parent="UI/TopBar"]
+[node name="CoinLabel" type="Label" parent="UI/TopBar/VBox"]
+layout_mode = 2
+
+[node name="CpsLabel" type="Label" parent="UI/TopBar/VBox"]
 layout_mode = 2
 
 [node name="ClickArea" type="VBoxContainer" parent="UI"]
@@ -25,22 +32,22 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -20.0
-offset_top = -20.0
-offset_right = 20.0
-offset_bottom = 20.0
+offset_left = -100.0
+offset_top = -127.0
+offset_right = 100.0
+offset_bottom = 73.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="ClickButton" type="Button" parent="UI/ClickArea"]
-custom_minimum_size = Vector2(200, 200)
-layout_mode = 2
-
 [node name="UpgradePanel" type="VBoxContainer" parent="UI"]
-anchors_preset = 12
+anchors_preset = 7
+anchor_left = 0.5
 anchor_top = 1.0
-anchor_right = 1.0
+anchor_right = 0.5
 anchor_bottom = 1.0
+offset_left = -240.0
+offset_top = -300.0
+offset_right = 240.0
 grow_horizontal = 2
 grow_vertical = 0
 
@@ -51,3 +58,19 @@ layout_mode = 2
 [node name="UpgradeList" type="VBoxContainer" parent="UI/UpgradePanel/ScrollContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
+
+[node name="ClickButton" type="TextureButton" parent="UI"]
+custom_minimum_size = Vector2(200, 200)
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -100.0
+offset_top = -100.0
+offset_right = 100.0
+offset_bottom = 100.0
+grow_horizontal = 2
+grow_vertical = 2
+ignore_texture_size = true
+stretch_mode = 0
