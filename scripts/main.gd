@@ -30,21 +30,30 @@ func _ready() -> void:
 func _setup_topbar() -> void:
 	var topbar = $UI/TopBar
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0, 0, 0, 0.75)
-	style.corner_radius_bottom_left = 8
-	style.corner_radius_bottom_right = 8
+	style.bg_color = Color(0, 0, 0, 0.85)
+	style.corner_radius_bottom_left = 10
+	style.corner_radius_bottom_right = 10
+	style.content_margin_left = 16
+	style.content_margin_right = 16
+	style.content_margin_top = 8
+	style.content_margin_bottom = 6
 	topbar.add_theme_stylebox_override("panel", style)
-	# Força cor branca nos labels
 	coin_label.add_theme_color_override("font_color", Color.WHITE)
-	cps_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.8))
+	coin_label.add_theme_font_size_override("font_size", 22)
+	cps_label.add_theme_color_override("font_color", Color(0.7, 1.0, 0.5))
+	cps_label.add_theme_font_size_override("font_size", 14)
 
 func _setup_click_button() -> void:
 	var tex = load("res://assets/sprites/panda_main.png")
 	if tex:
 		click_button.texture_normal = tex
+	# Pivot no centro para o bounce escalar a partir do meio
+	click_button.pivot_offset = Vector2(100, 100)
 
 func _on_click() -> void:
 	GameManager.click()
+	_spawn_click_feedback()
+	_bounce_panda()
 
 func _on_bamboo_changed(value: float) -> void:
 	coin_label.text = "🎋 " + _format(value) + " bamboo"
@@ -63,6 +72,32 @@ func _format(value: float) -> String:
 		return "%.2f K" % (value / 1_000)
 	else:
 		return "%d" % int(value)
+
+# --- Feedback visual ao clicar ---
+
+func _bounce_panda() -> void:
+	var tween = create_tween()
+	tween.tween_property(click_button, "scale", Vector2(1.12, 1.12), 0.07)
+	tween.tween_property(click_button, "scale", Vector2(1.0, 1.0), 0.12)
+
+func _spawn_click_feedback() -> void:
+	var lbl = Label.new()
+	lbl.text = "+1 🎋"
+	lbl.z_index = 100
+	lbl.add_theme_font_size_override("font_size", 28)
+	lbl.add_theme_color_override("font_color", Color(0.5, 1.0, 0.3))
+	lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+	lbl.add_theme_constant_override("shadow_offset_x", 2)
+	lbl.add_theme_constant_override("shadow_offset_y", 2)
+	$UI.add_child(lbl)
+	var btn_rect = click_button.get_global_rect()
+	var cx = btn_rect.position.x + btn_rect.size.x * 0.5
+	var cy = btn_rect.position.y + btn_rect.size.y * 0.25
+	lbl.position = Vector2(cx + randf_range(-40.0, 40.0) - 16.0, cy)
+	var tween = create_tween()
+	tween.tween_property(lbl, "position", lbl.position + Vector2(randf_range(-15.0, 15.0), -90.0), 0.85)
+	tween.parallel().tween_property(lbl, "modulate:a", 0.0, 0.85)
+	tween.tween_callback(func(): lbl.queue_free())
 
 func _build_upgrade_list() -> void:
 	# Painel escuro atrás da lista
