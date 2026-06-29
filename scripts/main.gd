@@ -82,7 +82,8 @@ func _bounce_panda() -> void:
 
 func _spawn_click_feedback() -> void:
 	var lbl = Label.new()
-	lbl.text = "+1 🎋"
+	var bpc = GameManager.bamboo_per_click
+	lbl.text = "+" + _format(bpc) + " 🎋"
 	lbl.z_index = 100
 	lbl.add_theme_font_size_override("font_size", 28)
 	lbl.add_theme_color_override("font_color", Color(0.5, 1.0, 0.3))

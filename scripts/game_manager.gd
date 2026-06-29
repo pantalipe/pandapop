@@ -55,16 +55,19 @@ func buy_upgrade(index: int) -> bool:
 
 func _recalculate() -> void:
 	bamboo_per_second = 0.0
-	bamboo_per_click = 1.0
+	var base_bpc: float = 1.0
 	for u in upgrades:
-		bamboo_per_second += u["bps"] * u["count"]
+		bamboo_per_second += u.get("bps", 0.0) * u["count"]
+		base_bpc += u.get("bpc", 0.0) * u["count"]
+	# Synergy: 1% do BPS total vira bônus de clique
+	bamboo_per_click = base_bpc + (bamboo_per_second * 0.01)
 	emit_signal("bps_changed", bamboo_per_second)
 
 func save_data() -> void:
-	var counts = []
+	var upgrade_counts: Dictionary = {}
 	for u in upgrades:
-		counts.append(u["count"])
-	var data = {"bamboo": bamboo, "total": total_earned, "counts": counts}
+		upgrade_counts[u["id"]] = u["count"]
+	var data = {"bamboo": bamboo, "total": total_earned, "upgrade_counts": upgrade_counts}
 	var file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
 		file.store_var(data)
@@ -80,7 +83,7 @@ func load_data() -> void:
 		if data:
 			bamboo = data.get("bamboo", 0.0)
 			total_earned = data.get("total", 0.0)
-			var counts = data.get("counts", [])
-			for i in range(min(counts.size(), upgrades.size())):
-				upgrades[i]["count"] = counts[i]
+			var upgrade_counts: Dictionary = data.get("upgrade_counts", {})
+			for u in upgrades:
+				u["count"] = upgrade_counts.get(u["id"], 0)
 			_recalculate()
