@@ -12,6 +12,11 @@ var bamboo_per_click: float = 1.0
 var bamboo_per_second: float = 0.0
 
 const SAVE_PATH = "user://save.dat"
+const _NO_WINDOW_POS := Vector2i(-999999, -999999)
+
+# Posição da janela do modo overlay (desktop companion). null-like via sentinel,
+# porque Godot Dictionary/store_var não serializa null de forma limpa.
+var _saved_window_pos: Vector2i = _NO_WINDOW_POS
 
 # Upgrades: {name, description, base_cost, cps_bonus, cpc_bonus, count}
 var upgrades: Array = [
@@ -67,7 +72,13 @@ func save_data() -> void:
 	var upgrade_counts: Dictionary = {}
 	for u in upgrades:
 		upgrade_counts[u["id"]] = u["count"]
-	var data = {"bamboo": bamboo, "total": total_earned, "upgrade_counts": upgrade_counts}
+	var data = {
+		"bamboo": bamboo,
+		"total": total_earned,
+		"upgrade_counts": upgrade_counts,
+		"window_x": _saved_window_pos.x,
+		"window_y": _saved_window_pos.y,
+	}
 	var file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
 		file.store_var(data)
@@ -87,3 +98,18 @@ func load_data() -> void:
 			for u in upgrades:
 				u["count"] = upgrade_counts.get(u["id"], 0)
 			_recalculate()
+			var wx: int = data.get("window_x", _NO_WINDOW_POS.x)
+			var wy: int = data.get("window_y", _NO_WINDOW_POS.y)
+			_saved_window_pos = Vector2i(wx, wy)
+
+## Retorna a posição salva da janela overlay, ou null se nunca foi definida
+## (primeira execução / ainda não existe save no formato novo).
+func get_saved_window_position():
+	if _saved_window_pos == _NO_WINDOW_POS:
+		return null
+	return _saved_window_pos
+
+## Chamado pelo overlay ao soltar o arrastar da janela.
+func save_window_position(pos: Vector2i) -> void:
+	_saved_window_pos = pos
+	save_data()

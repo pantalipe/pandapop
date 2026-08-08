@@ -11,9 +11,9 @@ config_version=5
 [application]
 
 config/name="PandaPop"
-config/description="A simple endless hopper by PandaPoints"
-run/main_scene="uid://52neeoxmq7tr"
-config/features=PackedStringArray("4.4", "Mobile")
+config/description="A desktop companion panda by PandaPoints"
+run/main_scene="res://scenes/OverlayMain.tscn"
+config/features=PackedStringArray("4.4")
 config/icon="res://assets/sprites/icon.png"
 
 [autoload]
@@ -22,12 +22,17 @@ GameManager="*res://scripts/game_manager.gd"
 
 [display]
 
-window/size/viewport_width=480
-window/size/viewport_height=854
-window/stretch/mode="canvas_items"
-window/handheld/orientation="portrait"
+window/size/viewport_width=220
+window/size/viewport_height=220
+window/size/borderless=true
+window/size/always_on_top=true
+window/size/transparent=true
+window/per_pixel_transparency/allowed=true
+window/stretch/mode="disabled"
+window/subwindows/embedded_subwindows=false
 
 [rendering]
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+viewport/transparent_background=true
