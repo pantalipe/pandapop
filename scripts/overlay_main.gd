@@ -10,6 +10,9 @@ extends Node2D
 @onready var panda_sprite: Sprite2D = $PandaArea/PandaSprite
 @onready var bamboo_label: Label = $BambooLabel
 
+var _sprite_base_scale: Vector2
+var _squish_tween: Tween
+
 const WINDOW_SIZE := Vector2i(220, 220)
 const FLOAT_MARGIN := 45.0      # o quanto o panda se afasta do centro ao flutuar
 const FLOAT_SPEED := 0.6
@@ -35,10 +38,12 @@ func _ready() -> void:
 	_center = Vector2(WINDOW_SIZE) * 0.5
 	panda_area.position = _center
 	_float_seed = randf() * 1000.0
+	_sprite_base_scale = panda_sprite.scale
 
 	_restore_window_position(window)
 
 	GameManager.bamboo_changed.connect(_on_bamboo_changed)
+	GameManager.click_landed.connect(_on_click_landed)
 	_on_bamboo_changed(GameManager.bamboo)
 
 	panda_area.input_pickable = true
@@ -106,8 +111,7 @@ func _update_drag_or_click() -> void:
 		if _drag_started:
 			GameManager.save_window_position(get_window().position)
 		else:
-			GameManager.click()
-			_spawn_click_feedback()
+			GameManager.click()  # GameManager decide valor/crit/combo e emite click_landed
 		_tracking_press = false
 		_drag_started = false
 
@@ -124,12 +128,18 @@ func _format(value: float) -> String:
 	else:
 		return "%d" % int(value)
 
-func _spawn_click_feedback() -> void:
+func _on_click_landed(amount: float, is_crit: bool, combo_multiplier: float) -> void:
+	_spawn_click_feedback(amount, is_crit)
+	_play_squish(is_crit)
+
+func _spawn_click_feedback(amount: float, is_crit: bool) -> void:
 	var lbl := Label.new()
-	lbl.text = "+" + _format(GameManager.bamboo_per_click) + " 🎋"
+	lbl.text = "+" + _format(amount) + (" 💥" if is_crit else " 🎋")
 	lbl.z_index = 100
-	lbl.add_theme_font_size_override("font_size", 16)
-	lbl.add_theme_color_override("font_color", Color(0.5, 1.0, 0.3))
+	var font_size := 22 if is_crit else 16
+	lbl.add_theme_font_size_override("font_size", font_size)
+	var color := Color(1.0, 0.82, 0.15) if is_crit else Color(0.5, 1.0, 0.3)
+	lbl.add_theme_color_override("font_color", color)
 	lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
 	lbl.add_theme_constant_override("shadow_offset_x", 1)
 	lbl.add_theme_constant_override("shadow_offset_y", 1)
@@ -139,8 +149,22 @@ func _spawn_click_feedback() -> void:
 	# do editor. Sem isso, se o panda estivesse flutuando perto do topo, o
 	# texto nascia (ou terminava a animação) fora da área visível.
 	var start_y: float = clamp(panda_area.position.y - 34.0, 34.0, WINDOW_SIZE.y - 40.0)
-	lbl.position = Vector2(panda_area.position.x - 16.0, start_y)
+	lbl.position = Vector2(panda_area.position.x - (20.0 if is_crit else 16.0), start_y)
+	var travel := -28.0 if is_crit else -20.0
+	var duration := 0.7 if is_crit else 0.55
 	var tween := create_tween()
-	tween.tween_property(lbl, "position", lbl.position + Vector2(0, -20), 0.55)
-	tween.parallel().tween_property(lbl, "modulate:a", 0.0, 0.55)
+	tween.tween_property(lbl, "position", lbl.position + Vector2(0, travel), duration)
+	tween.parallel().tween_property(lbl, "modulate:a", 0.0, duration)
 	tween.tween_callback(lbl.queue_free)
+
+func _play_squish(is_crit: bool) -> void:
+	# "Squish" de clique: achata e recupera rápido. Crit usa um punch maior
+	# pra reforçar visualmente que aquele clique valeu mais.
+	if _squish_tween:
+		_squish_tween.kill()
+	var punch := 1.35 if is_crit else 1.18
+	var squish_target := Vector2(_sprite_base_scale.x * punch, _sprite_base_scale.y * (2.0 - punch))
+	panda_sprite.scale = _sprite_base_scale
+	_squish_tween = create_tween()
+	_squish_tween.tween_property(panda_sprite, "scale", squish_target, 0.06).set_trans(Tween.TRANS_SINE)
+	_squish_tween.tween_property(panda_sprite, "scale", _sprite_base_scale, 0.14).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)

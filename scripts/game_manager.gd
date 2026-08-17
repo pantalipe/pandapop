@@ -5,11 +5,22 @@ extends Node
 
 signal bamboo_changed(value: float)
 signal bps_changed(value: float)  # bamboo per second
+signal click_landed(amount: float, is_crit: bool, combo_multiplier: float)  # feedback de clique
 
 var bamboo: float = 0.0
 var total_earned: float = 0.0
 var bamboo_per_click: float = 1.0
 var bamboo_per_second: float = 0.0
+
+const CRIT_CHANCE := 0.1          # 10% de chance de crit
+const CRIT_MULTIPLIER := 3.0
+const COMBO_WINDOW := 0.6         # segundos entre cliques pra manter o combo
+const COMBO_STEP := 0.05          # +5% por clique consecutivo no combo
+const COMBO_MAX_BONUS := 1.0      # até +100% (2x) no topo do combo
+
+var _combo_count: int = 0
+var _last_click_time: float = -999.0
+
 
 const SAVE_PATH = "user://save.dat"
 const _NO_WINDOW_POS := Vector2i(-999999, -999999)
@@ -36,7 +47,20 @@ func _process(delta: float) -> void:
 		add_bamboo(bamboo_per_second * delta)
 
 func click() -> void:
-	add_bamboo(bamboo_per_click)
+	var now := Time.get_ticks_msec() / 1000.0
+	if now - _last_click_time <= COMBO_WINDOW:
+		_combo_count += 1
+	else:
+		_combo_count = 0
+	_last_click_time = now
+
+	var combo_multiplier: float = 1.0 + min(_combo_count * COMBO_STEP, COMBO_MAX_BONUS)
+	var is_crit := randf() < CRIT_CHANCE
+	var crit_multiplier := CRIT_MULTIPLIER if is_crit else 1.0
+
+	var amount: float = bamboo_per_click * combo_multiplier * crit_multiplier
+	add_bamboo(amount)
+	emit_signal("click_landed", amount, is_crit, combo_multiplier)
 
 func add_bamboo(amount: float) -> void:
 	bamboo += amount
