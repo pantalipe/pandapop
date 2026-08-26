@@ -44,6 +44,7 @@ func _ready() -> void:
 
 	GameManager.bamboo_changed.connect(_on_bamboo_changed)
 	GameManager.click_landed.connect(_on_click_landed)
+	GameManager.offline_earnings_applied.connect(_on_offline_earnings_applied)
 	_on_bamboo_changed(GameManager.bamboo)
 
 	panda_area.input_pickable = true
@@ -131,6 +132,33 @@ func _format(value: float) -> String:
 func _on_click_landed(amount: float, is_crit: bool, combo_multiplier: float) -> void:
 	_spawn_click_feedback(amount, is_crit)
 	_play_squish(is_crit)
+
+func _on_offline_earnings_applied(amount: float, seconds_away: float) -> void:
+	var lbl := Label.new()
+	lbl.text = "Bem-vindo de volta!\n+" + _format(amount) + " 🎋 (" + _format_duration(seconds_away) + " de folga)"
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.z_index = 200
+	lbl.add_theme_font_size_override("font_size", 14)
+	lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
+	lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+	lbl.add_theme_constant_override("shadow_offset_x", 1)
+	lbl.add_theme_constant_override("shadow_offset_y", 1)
+	lbl.position = Vector2(4, WINDOW_SIZE.y * 0.5 - 20)
+	lbl.custom_minimum_size = Vector2(WINDOW_SIZE.x - 8, 40)
+	lbl.size = lbl.custom_minimum_size
+	add_child(lbl)
+	var tween := create_tween()
+	tween.tween_interval(3.0)
+	tween.tween_property(lbl, "modulate:a", 0.0, 0.8)
+	tween.tween_callback(lbl.queue_free)
+
+func _format_duration(seconds: float) -> String:
+	var minutes := int(seconds / 60.0)
+	if minutes < 60:
+		return str(minutes) + "min"
+	var hours := minutes / 60
+	var rem_minutes := minutes % 60
+	return str(hours) + "h" + str(rem_minutes) + "min"
 
 func _spawn_click_feedback(amount: float, is_crit: bool) -> void:
 	var lbl := Label.new()

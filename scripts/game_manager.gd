@@ -6,6 +6,7 @@ extends Node
 signal bamboo_changed(value: float)
 signal bps_changed(value: float)  # bamboo per second
 signal click_landed(amount: float, is_crit: bool, combo_multiplier: float)  # feedback de clique
+signal offline_earnings_applied(amount: float, seconds_away: float)  # ganho ao reabrir
 
 var bamboo: float = 0.0
 var total_earned: float = 0.0
@@ -24,6 +25,9 @@ var _last_click_time: float = -999.0
 
 const SAVE_PATH = "user://save.dat"
 const _NO_WINDOW_POS := Vector2i(-999999, -999999)
+const AUTOSAVE_INTERVAL := 30.0        # segundos entre autosaves de segurança
+const OFFLINE_CAP_HOURS := 12.0        # ganho offline conta no máximo essas horas
+const OFFLINE_MIN_SECONDS := 30.0      # abaixo disso, não vale a pena nem avisar
 
 # Posição da janela do modo overlay (desktop companion). null-like via sentinel,
 # porque Godot Dictionary/store_var não serializa null de forma limpa.
@@ -41,6 +45,21 @@ var upgrades: Array = [
 
 func _ready() -> void:
 	load_data()
+
+	var autosave_timer := Timer.new()
+	autosave_timer.wait_time = AUTOSAVE_INTERVAL
+	autosave_timer.autostart = true
+	autosave_timer.timeout.connect(save_data)
+	add_child(autosave_timer)
+
+	# Salva ao fechar a janela (Alt+F4, taskbar, etc.) — sem isso, bambu
+	# acumulado passivamente desde o último autosave/compra seria perdido.
+	get_tree().auto_accept_quit = false
+	get_tree().root.close_requested.connect(_on_close_requested)
+
+func _on_close_requested() -> void:
+	save_data()
+	get_tree().quit()
 
 func _process(delta: float) -> void:
 	if bamboo_per_second > 0:
@@ -102,6 +121,7 @@ func save_data() -> void:
 		"upgrade_counts": upgrade_counts,
 		"window_x": _saved_window_pos.x,
 		"window_y": _saved_window_pos.y,
+		"last_save_time": Time.get_unix_time_from_system(),
 	}
 	var file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -125,6 +145,27 @@ func load_data() -> void:
 			var wx: int = data.get("window_x", _NO_WINDOW_POS.x)
 			var wy: int = data.get("window_y", _NO_WINDOW_POS.y)
 			_saved_window_pos = Vector2i(wx, wy)
+			_apply_offline_earnings(data.get("last_save_time", 0.0))
+
+## Concede bambu pelo tempo que o companion ficou fechado, proporcional ao
+## bps atual, com teto de OFFLINE_CAP_HOURS (evita número absurdo se ficar
+## semanas fechado, e incentiva abrir com regularidade em vez de acumular
+## indefinidamente).
+func _apply_offline_earnings(last_save_time: float) -> void:
+	if last_save_time <= 0.0 or bamboo_per_second <= 0.0:
+		return
+	var now := Time.get_unix_time_from_system()
+	var elapsed: float = max(0.0, now - last_save_time)
+	var counted: float = min(elapsed, OFFLINE_CAP_HOURS * 3600.0)
+	if counted < OFFLINE_MIN_SECONDS:
+		return
+	var earned: float = bamboo_per_second * counted
+	add_bamboo(earned)
+	# Autoloads têm _ready() chamado antes da cena principal — emitir na hora
+	# significaria que ninguém ainda está ouvindo. call_deferred adia a
+	# emissão pro fim do frame de setup inicial, depois que a cena principal
+	# já teve chance de se conectar.
+	call_deferred("emit_signal", "offline_earnings_applied", earned, counted)
 
 ## Retorna a posição salva da janela overlay, ou null se nunca foi definida
 ## (primeira execução / ainda não existe save no formato novo).
