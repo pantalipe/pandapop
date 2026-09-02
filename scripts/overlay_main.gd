@@ -9,9 +9,15 @@ extends Node2D
 @onready var panda_area: Area2D = $PandaArea
 @onready var panda_sprite: Sprite2D = $PandaArea/PandaSprite
 @onready var bamboo_label: Label = $BambooLabel
+@onready var satiety_fill: ColorRect = $SatietyTrack/SatietyFill
+@onready var satiety_button: Control = $SatietyButton
 
 var _sprite_base_scale: Vector2
 var _squish_tween: Tween
+const SATIETY_BAR_WIDTH := 200.0
+const SATIETY_COLOR_FED := Color(0.4, 0.85, 0.3, 0.9)      # verde
+const SATIETY_COLOR_CONTENT := Color(0.9, 0.75, 0.2, 0.9)  # amarelo
+const SATIETY_COLOR_HUNGRY := Color(0.85, 0.35, 0.3, 0.9)  # vermelho
 
 const WINDOW_SIZE := Vector2i(220, 220)
 const FLOAT_MARGIN := 45.0      # o quanto o panda se afasta do centro ao flutuar
@@ -45,7 +51,11 @@ func _ready() -> void:
 	GameManager.bamboo_changed.connect(_on_bamboo_changed)
 	GameManager.click_landed.connect(_on_click_landed)
 	GameManager.offline_earnings_applied.connect(_on_offline_earnings_applied)
+	GameManager.fed.connect(_on_fed)
 	_on_bamboo_changed(GameManager.bamboo)
+	_update_satiety_bar()
+
+	satiety_button.gui_input.connect(_on_satiety_button_input)
 
 	panda_area.input_pickable = true
 	panda_area.input_event.connect(_on_panda_input_event)
@@ -66,6 +76,8 @@ func _restore_window_position(window: Window) -> void:
 func _process(_delta: float) -> void:
 	if _tracking_press:
 		_update_drag_or_click()
+
+	_update_satiety_bar()
 
 	if _drag_started:
 		return  # durante o arrastar, a posição do panda não flutua (evita "briga" visual)
@@ -132,6 +144,45 @@ func _format(value: float) -> String:
 func _on_click_landed(amount: float, is_crit: bool, combo_multiplier: float) -> void:
 	_spawn_click_feedback(amount, is_crit)
 	_play_squish(is_crit)
+
+# --- Saciedade / alimentação ---
+
+func _update_satiety_bar() -> void:
+	var ratio: float = GameManager.satiety / 100.0
+	satiety_fill.size.x = SATIETY_BAR_WIDTH * ratio
+	if GameManager.satiety >= GameManager.SATIETY_TIER_FED:
+		satiety_fill.color = SATIETY_COLOR_FED
+	elif GameManager.satiety >= GameManager.SATIETY_TIER_CONTENT:
+		satiety_fill.color = SATIETY_COLOR_CONTENT
+	else:
+		satiety_fill.color = SATIETY_COLOR_HUNGRY
+
+func _on_satiety_button_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		if not GameManager.feed():
+			_spawn_toast("Bambu insuficiente\npra alimentar", Color(0.85, 0.35, 0.3))
+
+func _on_fed(cost: float) -> void:
+	_spawn_toast("Alimentado! 🎋", Color(0.4, 0.85, 0.3))
+
+func _spawn_toast(text: String, color: Color) -> void:
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.z_index = 150
+	lbl.add_theme_font_size_override("font_size", 13)
+	lbl.add_theme_color_override("font_color", color)
+	lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+	lbl.add_theme_constant_override("shadow_offset_x", 1)
+	lbl.add_theme_constant_override("shadow_offset_y", 1)
+	lbl.custom_minimum_size = Vector2(WINDOW_SIZE.x - 8, 30)
+	lbl.size = lbl.custom_minimum_size
+	lbl.position = Vector2(4, WINDOW_SIZE.y - 46)
+	add_child(lbl)
+	var tween := create_tween()
+	tween.tween_interval(1.2)
+	tween.tween_property(lbl, "modulate:a", 0.0, 0.5)
+	tween.tween_callback(lbl.queue_free)
 
 func _on_offline_earnings_applied(amount: float, seconds_away: float) -> void:
 	var lbl := Label.new()
