@@ -147,15 +147,29 @@ func _on_menu_button_pressed() -> void:
 	if status_window.visible:
 		status_window.hide()
 		return
+
 	var main_pos := get_window().position
 	var status_size := status_window.size
+	var screen_id := DisplayServer.window_get_current_screen()
+	var screen_rect := DisplayServer.screen_get_usable_rect(screen_id)
+
 	# Abre à esquerda da janela principal; se não couber (companion perto
-	# da borda esquerda da tela), abre à direita em vez disso.
+	# da borda esquerda da tela ATUAL — não necessariamente x=0, pode ser
+	# um monitor secundário), abre à direita em vez disso.
 	var target_x := main_pos.x - status_size.x - 8
-	if target_x < 0:
+	if target_x < screen_rect.position.x:
 		target_x = main_pos.x + WINDOW_SIZE.x + 8
-	status_window.position = Vector2i(target_x, main_pos.y)
+
+	# Garante que a janela sempre caia dentro da tela atual em ambos os
+	# eixos, independente de onde a janela principal esteja (ex.: se ela
+	# foi arrastada perto de uma quina).
+	target_x = clampi(target_x, screen_rect.position.x, screen_rect.position.x + screen_rect.size.x - status_size.x)
+	var target_y := clampi(main_pos.y, screen_rect.position.y, screen_rect.position.y + screen_rect.size.y - status_size.y)
+
+	status_window.position = Vector2i(target_x, target_y)
 	status_window.show()
+	status_window.grab_focus()
+	print("StatusWindow aberta em ", status_window.position, " (tela ", screen_rect, ")")
 
 func _on_fed(_cost: float) -> void:
 	_spawn_toast("Alimentado! 🎋", Color(0.4, 0.85, 0.3))
