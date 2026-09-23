@@ -18,6 +18,15 @@ const COLOR_CONTENT := Color(0.9, 0.75, 0.2, 0.9)
 const COLOR_HUNGRY := Color(0.85, 0.35, 0.3, 0.9)
 
 func _ready() -> void:
+	# rendering/viewport/transparent_background=true é uma configuração
+	# GLOBAL do projeto (necessária pra janela overlay transparente) —
+	# toda Viewport/Window nova herda esse default, inclusive esta. Sem
+	# essa linha, o conteúdo desta janela renderiza com fundo transparente
+	# mas sem o resto da infraestrutura de janela transparente (sem
+	# window.transparent=true nela), o que resultava na janela inteira
+	# ficando invisível em vez de aparecer com fundo normal.
+	transparent_bg = false
+
 	# Fechar (X da janela) só esconde — não é a saída do app, é só o menu.
 	close_requested.connect(hide)
 
