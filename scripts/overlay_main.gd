@@ -170,6 +170,8 @@ func _on_menu_button_pressed() -> void:
 	status_window.show()
 	status_window.grab_focus()
 	print("StatusWindow aberta em ", status_window.position, " (tela ", screen_rect, ")")
+	print("  window_id=", status_window.get_window_id(), " visible=", status_window.visible, " size=", status_window.size)
+	print("  janelas do SO abertas: ", DisplayServer.get_window_list())
 
 func _on_fed(_cost: float) -> void:
 	_spawn_toast("Alimentado! 🎋", Color(0.4, 0.85, 0.3))
